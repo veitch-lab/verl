@@ -75,6 +75,7 @@ def main(config):
     data_sources = dataset[config.data.data_source_key]
     reward_model_data = dataset[config.data.reward_model_key]
 
+<<<<<<< HEAD
     total = len(dataset)
 
     # Initialize Ray
@@ -105,6 +106,31 @@ def main(config):
         metric_dict[f'test_score/{data_source}'] = np.mean(rewards)
 
     print(metric_dict)
+=======
+    passes = 0
+
+    total = len(dataset)
+    total_scores = []
+    for i in range(total):
+        response_lst = responses[i]
+        data_source = data_sources[i]
+        # select reward score based on data_source
+        prompt = prompts[i]
+        reward_data = reward_model_data[i]
+        reward_fn = select_reward_fn(data_source)
+        ground_truth = reward_data['ground_truth']
+        score_lst = []
+        for r in response_lst:
+            score = reward_fn(r, ground_truth)
+            score_lst.append(score)
+        max_score = np.max(score_lst)
+        total_scores.append(score_lst)
+        n_samples = len(response_lst)
+        if max_score == 1:
+            passes += 1
+    print(f'Pass@1, Avg: {np.mean(total_scores)}')
+    print(f'Pass@{n_samples}: {passes / total}')
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
 
 
 if __name__ == '__main__':

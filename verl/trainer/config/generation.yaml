@@ -14,16 +14,17 @@ model:
   external_lib: null
 rollout:
   name: vllm
+  async_engine: False
   temperature: 1.0
-  top_k: 50 # 0 for hf rollout, -1 for vllm rollout
-  top_p: 0.7
-  prompt_length: 1536
-  response_length: 512
+  top_k: -1 # 0 for hf rollout, -1 for vllm rollout
+  top_p: 0.95
+  prompt_length: 2048
+  response_length: 32768
   # for vllm rollout
   dtype: bfloat16 # should align with FSDP
   gpu_memory_utilization: 0.5
   ignore_eos: False
-  enforce_eager: True
+  enforce_eager: False
   free_cache_engine: True
   load_format: dummy_dtensor
   tensor_model_parallel_size: 1

@@ -1,14 +1,14 @@
 # requirements.txt records the full set of dependencies for development
 accelerate
 codetiming
-datasets
 dill
 flash-attn
 hydra-core
 liger-kernel
+datasets
+math-verify[antlr4_9_3]
 numpy
 pandas
-datasets
 peft
 pyarrow>=15.0.0
 pybind11

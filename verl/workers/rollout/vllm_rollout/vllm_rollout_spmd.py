@@ -55,7 +55,6 @@ def _pre_process_inputs(pad_token_id, prompt_token_ids: torch.Tensor) -> List[in
     token_ids = prompt_token_ids[non_pad_index:].tolist()
     return token_ids
 
-
 def _repeat_interleave(value: Union[torch.Tensor, np.ndarray], repeats: int) -> Union[torch.Tensor, List[Any]]:
     if isinstance(value, torch.Tensor):
         return value.repeat_interleave(repeats, dim=0)
@@ -84,7 +83,6 @@ class vLLMRollout(BaseRollout):
         assert tensor_parallel_size <= torch.distributed.get_world_size(), \
             "tensor parallel size should be less than or equal to the world size"
         max_num_batched_tokens = self.config.get('max_num_batched_tokens', 8192)
-
         if kwargs.get('train_tp', None) is not None:
             # deployed with megatron
             os.environ['CUDA_TIMER_STREAM_KAFKA_ENABLE'] = '0'

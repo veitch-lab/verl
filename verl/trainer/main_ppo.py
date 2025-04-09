@@ -22,7 +22,12 @@ import hydra
 
 
 def get_custom_reward_fn(config):
+<<<<<<< HEAD
     import importlib.util, sys
+=======
+    import importlib.util, os
+
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
     reward_fn_config = config.get("custom_reward_function") or {}
     file_path = reward_fn_config.get("path")
     if not file_path:
@@ -34,16 +39,24 @@ def get_custom_reward_fn(config):
     spec = importlib.util.spec_from_file_location("custom_module", file_path)
     module = importlib.util.module_from_spec(spec)
     try:
+<<<<<<< HEAD
         sys.modules["custom_module"] = module
+=======
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
         spec.loader.exec_module(module)
     except Exception as e:
         raise RuntimeError(f"Error loading module from '{file_path}': {e}")
 
     function_name = reward_fn_config.get("name")
+<<<<<<< HEAD
+=======
+
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
     if not hasattr(module, function_name):
         raise AttributeError(f"Reward function '{function_name}' not found in '{file_path}'.")
 
     print(f"using customized reward function '{function_name}' from '{file_path}'")
+<<<<<<< HEAD
     raw_fn = getattr(module, function_name)
 
     reward_kwargs = dict(reward_fn_config.get("reward_kwargs", {}))
@@ -52,14 +65,21 @@ def get_custom_reward_fn(config):
         return raw_fn(*args, **kwargs, **reward_kwargs)
 
     return wrapped_fn
+=======
+
+    return getattr(module, function_name)
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
 
 
 @hydra.main(config_path='config', config_name='ppo_trainer', version_base=None)
 def main(config):
+<<<<<<< HEAD
     run_ppo(config)
 
 
 def run_ppo(config) -> None:
+=======
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
     # TODO(linjunrong.ocss884): this ENV is left for resolving SGLang conflict with ray devices
     # isolation, will solve in the future
     os.environ["ENSURE_CUDA_VISIBLE_DEVICES"] = os.environ.get('CUDA_VISIBLE_DEVICES', '')
@@ -118,6 +138,10 @@ class TaskRunner:
         role_worker_mapping = {
             Role.ActorRollout: ray.remote(ActorRolloutRefWorker),
             Role.Critic: ray.remote(CriticWorker),
+<<<<<<< HEAD
+=======
+            Role.RefPolicy: ray.remote(ActorRolloutRefWorker)
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
         }
 
         global_pool_id = 'global_pool'
@@ -127,6 +151,10 @@ class TaskRunner:
         mapping = {
             Role.ActorRollout: global_pool_id,
             Role.Critic: global_pool_id,
+<<<<<<< HEAD
+=======
+            Role.RefPolicy: global_pool_id,
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
         }
 
         # we should adopt a multi-source reward function here
@@ -145,11 +173,14 @@ class TaskRunner:
             role_worker_mapping[Role.RewardModel] = ray.remote(RewardModelWorker)
             mapping[Role.RewardModel] = global_pool_id
 
+<<<<<<< HEAD
         #use reference model
         if config.algorithm.use_kl_in_reward or config.actor_rollout_ref.actor.use_kl_loss:
             role_worker_mapping[Role.RefPolicy] = ray.remote(ActorRolloutRefWorker)
             mapping[Role.RefPolicy] = global_pool_id
 
+=======
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
         reward_manager_name = config.reward_model.get("reward_manager", "naive")
         if reward_manager_name == 'naive':
             from verl.workers.reward_manager import NaiveRewardManager
@@ -157,6 +188,7 @@ class TaskRunner:
         elif reward_manager_name == 'prime':
             from verl.workers.reward_manager import PrimeRewardManager
             reward_manager_cls = PrimeRewardManager
+<<<<<<< HEAD
         elif reward_manager_name == 'batch':
             from verl.workers.reward_manager import BatchRewardManager
             reward_manager_cls = BatchRewardManager
@@ -180,6 +212,17 @@ class TaskRunner:
                                            num_examine=1,
                                            compute_score=compute_score,
                                            reward_fn_key=config.data.reward_fn_key)
+=======
+        else:
+            raise NotImplementedError
+
+        compute_score = get_custom_reward_fn(config)
+        reward_fn = reward_manager_cls(tokenizer=tokenizer, num_examine=0, compute_score=compute_score)
+
+        # Note that we always use function-based RM for validation
+        val_reward_fn = reward_manager_cls(tokenizer=tokenizer, num_examine=1, compute_score=compute_score)
+
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
         resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
 
         trainer = RayPPOTrainer(config=config,

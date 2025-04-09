@@ -339,7 +339,6 @@ def log_probs_from_logits_response_rmpad(input_ids, attention_mask, logits_rmpad
     logits and input_ids.
     The reason for this function to is to compute logprobs_from_logits in rmpad mode because it is memory-intensive
     for large vocab_size
-
     Args:
         input_ids: [batch_size, seqlen]
         attention_mask: [batch_size, seqlen]
@@ -367,7 +366,6 @@ def log_probs_from_logits_all_rmpad(input_ids_rmpad, logits_rmpad, indices, batc
     logits and input_ids.
     The reason for this function to is to compute logprobs_from_logits in rmpad mode because it is memory-intensive
     for large vocab_size
-
     Args:
         input_ids_rmpad: [1, total_nnz]
         logits_rmpad: [total_nnz, vocab_size]

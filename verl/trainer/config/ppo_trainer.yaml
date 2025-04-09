@@ -32,12 +32,19 @@ actor_rollout_ref:
     use_dynamic_bsz: False
     ppo_max_token_len_per_gpu: 16384 # n * ${data.max_prompt_length} + ${data.max_response_length}
     grad_clip: 1.0
+<<<<<<< HEAD
     # pg_losses2 = -advantages * torch.clamp(ratio, 1 - cliprange_low, 1 + cliprange_high)
     clip_ratio: 0.2 # default value if clip_ratio_low and clip_ratio_high are not specified
     clip_ratio_low: 0.2
     clip_ratio_high: 0.2
     clip_ratio_c: 3.0 # lower bound of the value for Dual-clip PPO from https://arxiv.org/pdf/1912.09729
     loss_agg_mode: "token-mean" # / "seq-mean-token-sum" / "seq-mean-token-mean"
+=======
+    clip_ratio: 0.2
+    clip_ratio_low: -1
+    clip_ratio_high: -1
+    use_token_level_loss: True
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
     entropy_coeff: 0.001
     use_kl_loss: False # True for GRPO
     use_torch_compile: True # False to disable torch compile
@@ -46,8 +53,11 @@ actor_rollout_ref:
     ppo_epochs: 1
     shuffle: False
     ulysses_sequence_parallel_size: 1 # sp size
+<<<<<<< HEAD
     checkpoint:
       contents: ['model', 'optimizer', 'extra']  # with 'hf_model' you can save whole model as hf format, now only use sharded model checkpoint to save space
+=======
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
     optim:
       lr: 1e-6
       lr_warmup_steps: -1 # Prioritized. Negative values mean delegating to lr_warmup_steps_ratio.
@@ -55,7 +65,10 @@ actor_rollout_ref:
       min_lr_ratio: null   # only useful for warmup with cosine
       warmup_style: constant  # select from constant/cosine
       total_training_steps: -1  # must be override by program
+<<<<<<< HEAD
       weight_decay: 0.01
+=======
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
     fsdp_config:
       wrap_policy:
         # transformer_layer_cls_to_wrap: None
@@ -76,6 +89,12 @@ actor_rollout_ref:
     ulysses_sequence_parallel_size: ${actor_rollout_ref.actor.ulysses_sequence_parallel_size} # sp size
   rollout:
     name: vllm
+<<<<<<< HEAD
+=======
+    compute_reward: False # Samplers trajectories and compute rewards on rollout worker (not main).
+    enable_log_prob: True # Append log_prob from vllm rollout, disables FSDP log_prob.
+    async_engine: True # Enable async engine for vllm rollout.
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
     temperature: 1.0
     top_k: -1 # 0 for hf rollout, -1 for vllm rollout
     top_p: 1
@@ -86,8 +105,13 @@ actor_rollout_ref:
     dtype: bfloat16 # should align with FSDP
     gpu_memory_utilization: 0.5
     ignore_eos: False
+<<<<<<< HEAD
     enforce_eager: True
     free_cache_engine: True
+=======
+    enforce_eager: False
+    free_cache_engine: False
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
     load_format: dummy_dtensor
     tensor_model_parallel_size: 2
     max_num_batched_tokens: 8192
@@ -112,7 +136,10 @@ actor_rollout_ref:
       do_sample: False # default eager for validation
 
 critic:
+<<<<<<< HEAD
   rollout_n: ${actor_rollout_ref.rollout.n}
+=======
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
   strategy: fsdp
   optim:
     lr: 1e-5
@@ -120,7 +147,10 @@ critic:
     min_lr_ratio: null   # only useful for warmup with cosine
     warmup_style: constant  # select from constant/cosine
     total_training_steps: -1  # must be override by program
+<<<<<<< HEAD
     weight_decay: 0.01
+=======
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
   model:
     path: ~/models/deepseek-llm-7b-chat
     tokenizer_path: ${actor_rollout_ref.model.path}
@@ -148,8 +178,11 @@ critic:
   shuffle: ${actor_rollout_ref.actor.shuffle}
   grad_clip: 1.0
   cliprange_value: 0.5
+<<<<<<< HEAD
   checkpoint:
     contents: ['model', 'optimizer', 'extra']  # with 'hf_model' you can save whole model as hf format, now only use sharded model checkpoint to save space
+=======
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
 
 reward_model:
   enable: False
@@ -180,21 +213,33 @@ algorithm:
   gamma: 1.0
   lam: 1.0
   adv_estimator: gae
+<<<<<<< HEAD
   use_kl_in_reward: False
+=======
+  mask_truncated_samples: False # Zero gradient for truncated samples (by setting advantage=0)
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
   kl_penalty: kl  # how to estimate kl divergence
   kl_ctrl:
     type: fixed
     kl_coef: 0.001
+<<<<<<< HEAD
     horizon: 10000
     target_kl: 0.1
 
 trainer:
+=======
+
+trainer:
+  rejection_sample: False # Reject sample prompts that all succeed or all fail (0 signal for GRPO due to normalization).
+  rejection_sample_multiplier: 2 # Multiple the training batch size by this factor to account for rejection sampling reduction.
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
   balance_batch: True
   total_epochs: 30
   total_training_steps: null
   project_name: verl_examples
   experiment_name: gsm8k
   logger: [ 'console', 'wandb' ]
+<<<<<<< HEAD
   log_val_generations: 0
   nnodes: 1
   n_gpus_per_node: 8
@@ -212,3 +257,18 @@ trainer:
   max_critic_ckpt_to_keep: null
   # The timeout for ray worker group to wait for the register center to be ready
   ray_wait_register_center_timeout: 300
+=======
+  val_generations_to_log_to_wandb: 0
+  nnodes: 1
+  n_gpus_per_node: 8
+  n_training_gpus_per_node: 4
+  save_freq: -1
+  # auto: find the last ckpt to resume. If can't find, start from scratch
+  resume_mode: auto # or auto or resume_path if 
+  resume_from_path: False
+  test_freq: -1
+  critic_warmup: 0
+  default_hdfs_dir: null
+  remove_previous_ckpt_in_save: False
+  del_local_ckpt_after_load: False
+  default_local_dir: checkpoints/${trainer.project_name}/${trainer.experiment_name}

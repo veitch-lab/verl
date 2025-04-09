@@ -353,7 +353,11 @@ Reward Model
     their own RewardModelWorker and pass it from the code.
 - ``reward_model.reward_manager``:  Reward Manager. This defines the mechanism
   of computing rule-based reward and handling different reward sources. Default
+<<<<<<< HEAD
   is ``naive``. If all verification functions are multiprocessing-safe, the reward
+=======
+  if ``naive``. If all verification functions are multiprocessing-safe, the reward
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
   manager can be set to ``prime`` for parallel verification.
 
 Customized Reward Function
@@ -407,11 +411,17 @@ Trainer
      project_name: verl_examples
      experiment_name: gsm8k
      logger: ['console', 'wandb']
+<<<<<<< HEAD
      log_val_generations: 0
      nnodes: 1
      n_gpus_per_node: 8
      save_freq: -1
      val_before_train: True
+=======
+     nnodes: 1
+     n_gpus_per_node: 8
+     save_freq: -1
+>>>>>>> 97c326f5bb97044eb6f7ae8fed135cd4a12bac12
      test_freq: 2
      critic_warmup: 0
      default_hdfs_dir: ~/experiments/gsm8k/ppo/${trainer.experiment_name} # hdfs checkpoint path

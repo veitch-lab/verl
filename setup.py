@@ -29,7 +29,7 @@ install_requires = [
   'hydra-core',
   'numpy',
   'pandas',
-  'datasets',
+  'math-verify',
   'peft',
   'pyarrow>=15.0.0',
   'pybind11',

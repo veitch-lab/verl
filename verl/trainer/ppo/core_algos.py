@@ -107,7 +107,8 @@ def compute_gae_advantage_return(token_level_rewards: torch.Tensor, values: torc
 def compute_grpo_outcome_advantage(token_level_rewards: torch.Tensor,
                                    response_mask: torch.Tensor,
                                    index: np.ndarray,
-                                   epsilon: float = 1e-6):
+                                   epsilon: float = 1e-6,
+                                   mask_truncated_samples: bool = True):
     """
     Compute advantage for GRPO, operating only on Outcome reward 
     (with only one scalar reward for each response).
@@ -123,6 +124,7 @@ def compute_grpo_outcome_advantage(token_level_rewards: torch.Tensor,
         Returns: `(torch.Tensor)`
             shape: (bs, response_length)
     """
+    response_length = token_level_rewards.shape[-1]
     scores = token_level_rewards.sum(dim=-1)
 
     id2score = defaultdict(list)
@@ -142,9 +144,57 @@ def compute_grpo_outcome_advantage(token_level_rewards: torch.Tensor,
                 id2std[idx] = torch.std(torch.tensor([id2score[idx]]))
             else:
                 raise ValueError(f"no score in prompt index: {idx}")
+
         for i in range(bsz):
-            scores[i] = (scores[i] - id2mean[index[i]]) / (id2std[index[i]] + epsilon)
-        scores = scores.unsqueeze(-1) * response_mask
+            if mask_truncated_samples:
+                if scores[i] == 0 and response_mask[i].sum() == response_length:
+                    scores[i] = 0
+                else:
+                    scores[i] = (scores[i] - id2mean[index[i]]) / (id2std[index[i]] + epsilon)
+            else:
+                scores[i] = (scores[i] - id2mean[index[i]]) / (id2std[index[i]] + epsilon)
+        scores = scores.unsqueeze(-1).tile([1, response_length]) * response_mask
+
+    return scores, scores
+
+def compute_loop_outcome_advantage(token_level_rewards: torch.Tensor,
+                                   response_mask: torch.Tensor,
+                                   index: torch.Tensor):
+    """
+    Compute advantage for LOOP which is same as GRPO without normalization based on https://arxiv.org/pdf/2502.01600
+    Args:
+        token_level_rewards: `(torch.Tensor)`
+            shape: (bs, response_length)
+        response_mask: `(torch.Tensor)`
+            shape: (bs, response_length)
+    
+    Returns:
+        advantages: `(torch.Tensor)`
+            shape: (bs, response_length)
+        Returns: `(torch.Tensor)`
+            shape: (bs, response_length)
+    """
+    response_length = token_level_rewards.shape[-1]
+    scores = token_level_rewards.sum(dim=-1)
+
+    id2samples = defaultdict(list)
+
+    with torch.no_grad():
+        bsz = scores.shape[0]
+        for i in range(bsz):
+            id2samples[index[i]].append((i, scores[i]))
+        for group in id2samples.values():
+            group_size = len(group)
+            total_score = sum(score for _, score in group)
+            for i, score in group: # i is original index
+                loo_baseline = 0
+                if group_size == 1:
+                    print("Cannot compute LOO advantage using 1 sample. 0 baseline is used")
+                else:
+                    loo_baseline = (total_score - score) / (group_size - 1)
+                scores[i] = score - loo_baseline
+        
+        scores = scores.unsqueeze(-1).tile([1, response_length]) * response_mask
 
     return scores, scores
 
@@ -233,7 +283,7 @@ def compute_rloo_outcome_advantage(token_level_rewards: torch.Tensor,
             if response_num > 1:
                 scores[i] = scores[i] * response_num / (response_num -
                                                         1) - id2mean[index[i]] * response_num / (response_num - 1)
-        scores = scores.unsqueeze(-1) * response_mask
+        scores = scores.unsqueeze(-1).tile([1, response_length]) * response_mask
 
     return scores, scores
 
@@ -271,6 +321,49 @@ def compute_reinforce_plus_plus_outcome_advantage(token_level_rewards: torch.Ten
 
     return advantages, returns
 
+def compute_reinforce_plus_plus_baseline_outcome_advantage(token_level_rewards: torch.Tensor,
+                                                           response_mask: torch.Tensor,
+                                                           index: torch.Tensor,
+                                                           epsilon: float = 1e-6):
+    """
+    Compute advantage for RF++-baseline (https://arxiv.org/abs/2501.03262), operating only on Outcome reward 
+    (with only one scalar reward for each response).
+    Args:
+        token_level_rewards: `(torch.Tensor)`
+            shape: (bs, response_length)
+        response_mask: `(torch.Tensor)`
+            shape: (bs, response_length)
+    
+    Returns:
+        advantages: `(torch.Tensor)`
+            shape: (bs, response_length)
+        Returns: `(torch.Tensor)`
+            shape: (bs, response_length)
+    """
+    response_length = token_level_rewards.shape[-1]
+    scores = token_level_rewards.sum(dim=-1)
+
+    id2score = defaultdict(list)
+    id2mean = {}
+
+    with torch.no_grad():
+        bsz = scores.shape[0]
+        for i in range(bsz):
+            id2score[index[i]].append(scores[i])
+        for idx in id2score:
+            if len(id2score[idx]) == 1:
+                id2mean[idx] = torch.tensor(0.0)
+            elif len(id2score[idx]) > 1:
+                id2mean[idx] = torch.mean(torch.tensor(id2score[idx]))
+            else:
+                raise ValueError(f"no score in prompt index: {idx}")
+        for i in range(bsz):
+            scores[i] = scores[i] - id2mean[index[i]]
+
+        scores = scores.unsqueeze(-1).tile([1, response_length]) * response_mask
+        scores = verl_F.masked_whiten(scores, response_mask)
+
+    return scores, scores
 
 def compute_remax_outcome_advantage(token_level_rewards: torch.Tensor, reward_baselines: torch.Tensor,
                                     response_mask: torch.Tensor):
@@ -293,10 +386,12 @@ def compute_remax_outcome_advantage(token_level_rewards: torch.Tensor, reward_ba
         Returns: `(torch.Tensor)`
             shape: (bs, response_length)
     """
+    response_length = token_level_rewards.shape[-1]
+    scores = token_level_rewards.sum(dim=-1)
 
     with torch.no_grad():
         returns = (token_level_rewards * response_mask).flip(dims=[-1]).cumsum(dim=-1).flip(dims=[-1])
-        advantages = returns - reward_baselines.unsqueeze(-1) * response_mask
+        advantages = returns - reward_baselines.unsqueeze(-1).tile([1, response_length]) * response_mask
 
     return advantages, returns
 
