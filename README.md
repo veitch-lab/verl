@@ -1,5 +1,5 @@
 <h1 style="text-align: center;">verl: Volcano Engine Reinforcement Learning for LLMs</h1>
-
+# Note: This is a fork of verl to merge changes from [verl-pipeline](https://github.com/agentica-project/verl-pipeline/) into verl
 [![GitHub Repo stars](https://img.shields.io/github/stars/volcengine/verl)](https://github.com/volcengine/verl/stargazers)
 ![GitHub forks](https://img.shields.io/github/forks/volcengine/verl)
 [![Twitter](https://img.shields.io/twitter/follow/verl_project)](https://twitter.com/verl_project)
