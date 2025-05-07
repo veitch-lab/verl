@@ -22,7 +22,7 @@ from collections import defaultdict
 
 import numpy as np
 import torch
-
+from scipy.stats import rankdata
 import verl.utils.torch_functional as verl_F
 
 
@@ -164,6 +164,58 @@ def compute_grpo_outcome_advantage(
 
     return scores, scores
 
+def compute_group_rank_outcome_advantage(
+    token_level_rewards: torch.Tensor,
+    response_mask: torch.Tensor,
+    index: np.ndarray,
+):
+    """
+    Compute advantage for Group relative rank, operating only on Outcome reward
+    (with only one scalar reward for each response).
+    Args:
+        token_level_rewards: `(torch.Tensor)`
+            shape: (bs, response_length)
+        response_mask: `(torch.Tensor)`
+            shape: (bs, response_length)
+        index: `(np.ndarray)`
+            shape: (bs,) prompt indices for grouping responses
+        epsilon: `(float)`
+            small value to avoid division by zero
+
+    Returns:
+        advantages: `(torch.Tensor)`
+            shape: (bs, response_length)
+        Returns: `(torch.Tensor)`
+            shape: (bs, response_length)
+    """
+    scores = token_level_rewards.sum(dim=-1)  # (bs,)
+    id2score = defaultdict(list)
+
+    with torch.no_grad():
+        bsz = scores.shape[0]
+        for i in range(bsz):
+            id2score[index[i]].append((i, scores[i].item()))
+
+        advantages = torch.zeros_like(scores)
+        for idx in id2score:
+            group_scores_with_indices = id2score[idx]
+            n = len(group_scores_with_indices)
+            if n == 1:
+                i, _ = group_scores_with_indices[0]
+                advantages[i] = 0.0
+            else:
+                original_indices = [item[0] for item in group_scores_with_indices]
+                group_only_scores = np.array([item[1] for item in group_scores_with_indices])
+                group_ranks = rankdata(group_only_scores, method='average')
+                group_advantages = torch.zeros(n, device=scores.device)
+                for i, rank in enumerate(group_ranks):
+                    quantile = rank / (n + 1)
+                    normal_quantile = torch.sqrt(torch.tensor(2.0, device=scores.device)) * torch.erfinv(2 * torch.tensor(quantile, device=scores.device) - 1)
+                    original_index = original_indices[i]
+                    advantages[original_index] = normal_quantile
+        advantages = advantages.unsqueeze(-1).expand_as(response_mask) * response_mask
+
+    return advantages, advantages
 
 def compute_reinforce_plus_plus_baseline_outcome_advantage(token_level_rewards: torch.Tensor, response_mask: torch.Tensor, index: torch.Tensor, epsilon: float = 1e-6):
     """
